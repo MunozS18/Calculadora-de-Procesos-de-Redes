@@ -156,6 +156,7 @@ class CPMApp(tk.Tk):
 
     def _build_results(self):
         self.results_tab.rowconfigure(1, weight=1)
+        self.results_tab.rowconfigure(2, weight=0)
         self.results_tab.columnconfigure(0, weight=1)
         self.critical_var = tk.StringVar(value="Calcula el proyecto para ver la ruta crítica")
         route = ttk.Frame(self.results_tab, style="Card.TFrame", padding=16)
@@ -178,6 +179,14 @@ class CPMApp(tk.Tk):
         scroll = ttk.Scrollbar(frame, orient="vertical", command=self.results_tree.yview)
         scroll.grid(row=0, column=1, sticky="ns")
         self.results_tree.configure(yscrollcommand=scroll.set)
+        self.results_tree.bind("<<TreeviewSelect>>", self._show_activity_detail)
+
+        detail = ttk.Frame(self.results_tab, style="Card.TFrame", padding=14)
+        detail.grid(row=2, column=0, sticky="ew", pady=(12, 0))
+        ttk.Label(detail, text="FICHA COMPLETA DE LA ACTIVIDAD", style="CardCaption.TLabel").pack(anchor="w")
+        self.detail_var = tk.StringVar(value="Selecciona una actividad para ver todos sus parámetros calculados.")
+        ttk.Label(detail, textvariable=self.detail_var, style="Muted.TLabel", justify="left", anchor="w").pack(fill="x", pady=(6, 0))
+        ttk.Button(detail, text="Editar esta actividad en el formulario", command=self._edit_selected_result).pack(anchor="e", pady=(8, 0))
 
     def _load_example(self):
         self.activities = [
@@ -246,7 +255,7 @@ class CPMApp(tk.Tk):
             self.activities.append(activity)
             self._refresh_activity_tree()
             self._clear_form()
-            self.status_var.set("Actividad agregada. Calcula para actualizar resultados.")
+            self._calculate()
         except ValueError as error:
             messagebox.showerror("Datos de actividad", str(error))
 
@@ -267,7 +276,7 @@ class CPMApp(tk.Tk):
                 item["predecesoras"] = [activity["id"] if pred == old_id else pred for pred in item["predecesoras"]]
             self._refresh_activity_tree()
             self._clear_form()
-            self.status_var.set("Actividad actualizada. Calcula para actualizar resultados.")
+            self._calculate()
         except ValueError as error:
             messagebox.showerror("Datos de actividad", str(error))
 
@@ -281,7 +290,7 @@ class CPMApp(tk.Tk):
             item["predecesoras"] = [pred for pred in item["predecesoras"] if pred != activity_id]
         self._refresh_activity_tree()
         self._clear_form()
-        self.status_var.set("Actividad eliminada. Calcula para actualizar resultados.")
+        self._calculate()
 
     def _select_activity(self, _event=None):
         selected = self.activity_tree.selection()
@@ -308,12 +317,45 @@ class CPMApp(tk.Tk):
             messagebox.showerror("No se puede calcular", str(error))
             self.status_var.set("Revisa las precedencias del proyecto")
 
+    def _show_activity_detail(self, _event=None):
+        selected = self.results_tree.selection()
+        if not selected or not self.network:
+            return
+        activity = self.network.activities.get(selected[0])
+        if not activity:
+            return
+        successors = [item.id for item in self.network.activities.values() if activity.id in item.predecessors]
+        alert = (not activity.is_critical and activity.ff < activity.tf - 1e-9)
+        self.detail_var.set(
+            f"{activity.id} · {activity.name}\n"
+            f"Duración: {activity.duration:g}    |    Predecesoras: {', '.join(activity.predecessors) or 'Inicio'}    |    "
+            f"Sucesoras: {', '.join(successors) or 'Fin'}\n"
+            f"Inicio temprano (ES): {activity.es:g}    |    Fin temprano (EF): {activity.ef:g}    |    "
+            f"Inicio tardío (LS): {activity.ls:g}    |    Fin tardío (LF): {activity.lf:g}\n"
+            f"Flotante total: {activity.tf:g}    |    Flotante libre: {activity.ff:g}    |    "
+            f"Estado: {'CRÍTICA' if activity.is_critical else 'Normal'}    |    Señal roja: {'Sí' if alert else 'No'}"
+        )
+        if self.activity_tree.exists(activity.id):
+            self.activity_tree.selection_set(activity.id)
+            self.activity_tree.see(activity.id)
+
+    def _edit_selected_result(self):
+        selected = self.results_tree.selection()
+        if selected and self.activity_tree.exists(selected[0]):
+            self.activity_tree.selection_set(selected[0])
+            self.activity_tree.see(selected[0])
+            self._select_activity()
+
     def _update_results(self):
         for item in self.results_tree.get_children():
             self.results_tree.delete(item)
         for activity in self.network.activities.values():
             values = (activity.id, activity.name, f"{activity.duration:g}", f"{activity.es:g}", f"{activity.ef:g}", f"{activity.ls:g}", f"{activity.lf:g}", f"{activity.tf:g}", f"{activity.ff:g}", "CRÍTICA" if activity.is_critical else "Normal")
-            self.results_tree.insert("", "end", values=values, tags=("critical" if activity.is_critical else "normal",))
+            self.results_tree.insert("", "end", iid=activity.id, values=values, tags=("critical" if activity.is_critical else "normal",))
+        if self.results_tree.get_children():
+            self.results_tree.selection_set(self.results_tree.get_children()[0])
+            self.results_tree.focus(self.results_tree.get_children()[0])
+            self._show_activity_detail()
         route = self.network._ordenar_ruta_critica()
         self.critical_var.set("  ›  ".join(route) if route else "No se encontró ruta crítica")
         self.metric_vars["duration"].set(f"{self.network.duracion_proyecto:g}")

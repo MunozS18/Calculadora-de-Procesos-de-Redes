@@ -1,6 +1,5 @@
-<<<<<<< HEAD
 # Calculadora-de-Procesos-de-Redes
-=======
+
 # CPM Studio
 
 Aplicación de escritorio para planificar proyectos mediante el método de la ruta crítica (**CPM**, por sus siglas en inglés). Permite definir actividades, establecer sus dependencias, calcular la red del proceso, identificar la ruta crítica y visualizar el cronograma en un diagrama de Gantt.
@@ -23,6 +22,8 @@ Aplicación de escritorio para planificar proyectos mediante el método de la ru
 - Cargar un proyecto de ejemplo de construcción de una casa.
 - Importar y exportar proyectos en formato JSON.
 - Exportar la red y el cronograma como imágenes PNG.
+- Recalcular automáticamente al agregar, editar o eliminar una actividad.
+- Consultar la ficha completa de cualquier actividad seleccionada en Resultados.
 
 ## Requisitos
 
@@ -105,8 +106,8 @@ En el panel izquierdo encontrarás cuatro campos:
 2. Escribe el `ID`, nombre, duración y predecesoras.
 3. Pulsa **+ Agregar**.
 4. Repite el proceso hasta completar la red.
-5. Pulsa **CALCULAR PROYECTO**.
-6. Revisa la pestaña **Resultados**.
+5. El análisis se recalcula automáticamente después de agregar, editar o eliminar una actividad. También puedes pulsar **CALCULAR PROYECTO** en cualquier momento.
+6. Revisa la pestaña **Resultados** y selecciona una fila para ver la ficha completa: datos de entrada, tiempos tempranos y tardíos, holguras, dependencias, estado y señal roja. Pulsa **Editar esta actividad en el formulario** para cambiar su ID, nombre, duración o predecesoras.
 7. Revisa la pestaña **Red del proceso** para ver las relaciones entre actividades.
 8. Revisa la pestaña **Cronograma** para analizar el calendario y las holguras.
 
@@ -116,7 +117,9 @@ En el panel izquierdo encontrarás cuatro campos:
 2. Sus datos aparecerán en el formulario.
 3. Modifica uno o varios campos.
 4. Pulsa **Actualizar**.
-5. Pulsa **CALCULAR PROYECTO** para recalcular todos los resultados.
+5. El programa recalcula automáticamente todos los resultados, la red y el cronograma.
+
+También puedes seleccionar cualquier actividad desde **Resultados**. Sus valores se cargarán en el formulario izquierdo; pulsa **Actualizar** para aplicar los cambios a esa actividad y a las actividades que dependan de ella.
 
 Si modificas el ID, CPM Studio actualiza también las referencias a ese ID en las actividades que lo utilizan como predecesora.
 
@@ -272,4 +275,3 @@ Revisa que ninguna cadena de dependencias regrese a una actividad anterior. Una 
 El programa utiliza el modelo **Actividad-en-el-Nodo (AON)**. Cada actividad es un nodo y sus predecesoras se representan mediante flechas. El algoritmo realiza un recorrido hacia adelante para calcular tiempos tempranos y un recorrido hacia atrás para calcular tiempos tardíos y holguras.
 
 La instalación opcional de `pygraphviz` no es necesaria. Cuando no está disponible, el programa utiliza automáticamente un diseño alternativo por niveles para dibujar la red.
->>>>>>> 9832675 (primer commit)
