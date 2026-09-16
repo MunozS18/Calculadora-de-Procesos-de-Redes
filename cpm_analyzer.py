@@ -23,11 +23,51 @@ Operaciones", 9na ed., Capítulo 6.
 """
 
 from dataclasses import dataclass, field
+from fractions import Fraction
 from typing import Dict, List, Optional
 import os
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import networkx as nx
+
+
+def _to_fraction(value) -> Fraction:
+    """Normaliza cualquier entrada numérica o textual a Fraction."""
+    if isinstance(value, Fraction):
+        return value
+    if isinstance(value, int):
+        return Fraction(value, 1)
+    if isinstance(value, float):
+        return Fraction(str(value))
+    if isinstance(value, str):
+        texto = value.strip()
+        if not texto or texto in {"-", "—"}:
+            raise ValueError(f"Duración no válida: {value!r}")
+        if " " in texto and "/" in texto:
+            partes = texto.split()
+            if len(partes) == 2:
+                return _to_fraction(partes[0]) + _to_fraction(partes[1])
+        return Fraction(texto.replace(" ", ""))
+    raise TypeError(f"Tipo de duración no soportado: {type(value).__name__}")
+
+
+def format_duration(value) -> str:
+    """Devuelve una duración legible en entero, decimal o fracción mixta."""
+    numero = _to_fraction(value)
+    if numero.denominator == 1:
+        return str(numero.numerator)
+
+    sign = "-" if numero < 0 else ""
+    numerador = abs(numero.numerator)
+    denominador = numero.denominator
+    parte_entera = numerador // denominador
+    resto = numerador % denominador
+
+    if parte_entera == 0:
+        return f"{sign}{resto}/{denominador}"
+    if resto == 0:
+        return f"{sign}{parte_entera}"
+    return f"{sign}{parte_entera} {resto}/{denominador}"
 
 
 # ============================================================================
@@ -73,8 +113,10 @@ class CPMNetwork:
 
     def __init__(self, activities: Dict[str, Activity]):
         self.activities = activities
+        for act in self.activities.values():
+            act.duration = _to_fraction(act.duration)
         self._validar_proyecto()
-        self.duracion_proyecto: float = 0.0
+        self.duracion_proyecto = Fraction(0, 1)
         self.ruta_critica: List[str] = []
 
     # ------------------------------------------------------------------
@@ -205,14 +247,14 @@ class CPMNetwork:
         print("-" * len(hdr))
         for a in self.activities.values():
             marca = "  *** SI ***" if a.is_critical else ""
-            print(f"{a.id:<6}{a.duration:>6.1f}{a.es:>7.1f}{a.ef:>7.1f}"
-                  f"{a.ls:>7.1f}{a.lf:>7.1f}{a.tf:>7.1f}{a.ff:>7.1f}{marca}")
+            print(f"{a.id:<6}{format_duration(a.duration):>6}{format_duration(a.es):>7}{format_duration(a.ef):>7}"
+                  f"{format_duration(a.ls):>7}{format_duration(a.lf):>7}{format_duration(a.tf):>7}{format_duration(a.ff):>7}{marca}")
 
     def imprimir_resumen(self):
         print("\n" + "=" * 78)
         print(" 3. RESUMEN")
         print("=" * 78)
-        print(f"Duración total del proyecto : {self.duracion_proyecto:.1f} unidades de tiempo")
+        print(f"Duración total del proyecto : {format_duration(self.duracion_proyecto)} unidades de tiempo")
         print(f"Ruta crítica                 : "
               f"{' -> '.join(self._ordenar_ruta_critica())}")
         print("\nRegla de la señal roja (Taha, 6.5.3): una actividad no "
@@ -244,7 +286,7 @@ class CPMNetwork:
     def graficar_red(self, ruta_salida: str):
         G = nx.DiGraph()
         for a in self.activities.values():
-            etiqueta = f"{a.id}\n{a.duration:g}"
+            etiqueta = f"{a.id}\n{format_duration(a.duration)}"
             G.add_node(a.id, label=etiqueta)
             for pred in a.predecessors:
                 G.add_edge(pred, a.id)
@@ -325,27 +367,30 @@ class CPMNetwork:
 
         for i, a in enumerate(actividades):
             y = len(actividades) - i - 1
+            start = float(a.es)
+            duration = float(a.duration)
             if a.is_critical:
                 # Actividad crítica: sin holgura, una sola barra roja
-                ax.barh(y, a.duration, left=a.es, height=0.5,
+                ax.barh(y, duration, left=start, height=0.5,
                         color="#E24B4A", edgecolor="black")
             else:
                 # Actividad no crítica: barra de duración (azul) +
                 # barra de holgura total (gris claro) hasta LF
-                ax.barh(y, a.duration, left=a.es, height=0.5,
+                ax.barh(y, duration, left=start, height=0.5,
                         color="#378ADD", edgecolor="black")
                 holgura = a.lf - a.ef
-                if holgura > 1e-9:
-                    ax.barh(y, holgura, left=a.ef, height=0.5,
+                if holgura > Fraction(0, 1):
+                    ax.barh(y, float(holgura), left=float(a.ef), height=0.5,
                             color="#D3D1C7", edgecolor="black",
                             hatch="//", alpha=0.6)
-            ax.text(a.es - 0.15, y, a.id, va="center", ha="right",
+            ax.text(start - 0.15, y, a.id, va="center", ha="right",
                     fontsize=9, fontweight="bold")
 
-        ax.axvline(self.duracion_proyecto, color="black", linestyle="--",
+        project_end = float(self.duracion_proyecto)
+        ax.axvline(project_end, color="black", linestyle="--",
                    linewidth=1)
-        ax.text(self.duracion_proyecto, len(actividades) + 0.3,
-                f" Fin del proyecto = {self.duracion_proyecto:g}",
+        ax.text(project_end, len(actividades) + 0.3,
+                f" Fin del proyecto = {format_duration(self.duracion_proyecto)}",
                 fontsize=9, ha="left")
 
         ax.set_yticks([])
@@ -417,7 +462,7 @@ def analizar_proyecto(descripcion: List[dict],
 
     actividades = {
         d["id"]: Activity(id=d["id"], name=d.get("nombre", d["id"]),
-                           duration=d["duracion"],
+                           duration=_to_fraction(d["duracion"]),
                            predecessors=d.get("predecesoras", []))
         for d in descripcion
     }

@@ -12,26 +12,15 @@ Proyecto: construcción de una casa nueva
 from cpm_analyzer import analizar_proyecto
 
 proyecto_casa = [
-    {"id": "A", "nombre": "Limpiar el terreno",              "duracion": 1,  "predecesoras": []},
-    {"id": "B", "nombre": "Llevar servicios al terreno",      "duracion": 2,  "predecesoras": []},
-    {"id": "C", "nombre": "Excavar",                          "duracion": 1,  "predecesoras": ["A"]},
-    {"id": "D", "nombre": "Colar los cimientos",              "duracion": 2,  "predecesoras": ["C"]},
-    {"id": "E", "nombre": "Plomería externa",                 "duracion": 6,  "predecesoras": ["B", "C"]},
-    {"id": "F", "nombre": "Armar estructura de la casa",      "duracion": 10, "predecesoras": ["D"]},
-    {"id": "G", "nombre": "Instalar cableado eléctrico",      "duracion": 3,  "predecesoras": ["F"]},
-    {"id": "H", "nombre": "Colocar el piso",                  "duracion": 1,  "predecesoras": ["G"]},
-    {"id": "I", "nombre": "Colocar el techo",                 "duracion": 1,  "predecesoras": ["F"]},
-    {"id": "J", "nombre": "Plomería interior",                "duracion": 5,  "predecesoras": ["E", "H"]},
-    {"id": "K", "nombre": "Colocar tejas",                    "duracion": 2,  "predecesoras": ["I"]},
-    {"id": "L", "nombre": "Recubrimiento aislante exterior",  "duracion": 1,  "predecesoras": ["F", "J"]},
-    {"id": "M", "nombre": "Instalar ventanas y puertas ext.", "duracion": 2,  "predecesoras": ["F"]},
-    {"id": "N", "nombre": "Enladrillar",                      "duracion": 4,  "predecesoras": ["L", "M"]},
-    {"id": "O", "nombre": "Aislar muros y cielo raso",        "duracion": 2,  "predecesoras": ["G", "J"]},
-    {"id": "P", "nombre": "Cubrir muros y cielo raso",        "duracion": 2,  "predecesoras": ["O"]},
-    {"id": "Q", "nombre": "Aislar techo",                     "duracion": 1,  "predecesoras": ["I", "P"]},
-    {"id": "R", "nombre": "Terminar interiores",              "duracion": 7,  "predecesoras": ["P"]},
-    {"id": "S", "nombre": "Terminar exteriores",               "duracion": 7,  "predecesoras": ["I", "N"]},
-    {"id": "T", "nombre": "Jardinería",                        "duracion": 3,  "predecesoras": ["S"]},
+    {"id": "A", "nombre": "Revisión del trabajo", "duracion": "1", "predecesoras": []},
+    {"id": "B", "nombre": "Avisar a los clientes del corte temporal de corriente", "duracion": "1/2", "predecesoras": ["A"]},
+    {"id": "C", "nombre": "Tiendas de requisición", "duracion": "1", "predecesoras": ["A"]},
+    {"id": "D", "nombre": "Explorar el trabajo", "duracion": "1/2", "predecesoras": ["A"]},
+    {"id": "E", "nombre": "Asegurar los postes y materiales", "duracion": "3", "predecesoras": ["C", "D"]},
+    {"id": "F", "nombre": "Distribuir los postes", "duracion": "3 1/2", "predecesoras": ["E"]},
+    {"id": "G", "nombre": "Coordinar la ubicación de postes", "duracion": "1/2", "predecesoras": ["D"]},
+    {"id": "H", "nombre": "Clavar estacas", "duracion": "1/2", "predecesoras": ["G"]},
+    {"id": "I", "nombre": "Cavar agujeros", "duracion": "3", "predecesoras": ["H"]},
 ]
 
 if __name__ == "__main__":

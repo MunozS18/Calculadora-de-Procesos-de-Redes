@@ -1,12 +1,30 @@
 import json
 import os
 import tkinter as tk
+from fractions import Fraction
 from tkinter import filedialog, messagebox, ttk
 
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 
-from cpm_analyzer import Activity, CPMNetwork
+from cpm_analyzer import Activity, CPMNetwork, format_duration, _to_fraction
+
+
+def parse_duration(value):
+    if value is None:
+        raise ValueError("La duración no puede estar vacía.")
+    if isinstance(value, Fraction):
+        return value
+    if isinstance(value, (int, float)):
+        return Fraction(str(value))
+    texto = str(value).strip()
+    if not texto or texto in {"-", "—"}:
+        raise ValueError("La duración no puede estar vacía.")
+    if " " in texto and "/" in texto:
+        partes = texto.split()
+        if len(partes) == 2:
+            return parse_duration(partes[0]) + parse_duration(partes[1])
+    return _to_fraction(texto.replace(" ", ""))
 
 
 COLORS = {
@@ -94,8 +112,20 @@ class CPMApp(tk.Tk):
             ttk.Label(form, text=label, style="Muted.TLabel").grid(row=row, column=0, sticky="w", pady=4)
             ttk.Entry(form, textvariable=var, width=width).grid(row=row, column=1, sticky="ew", padx=(12, 0), pady=4)
         self.predecessors_var.set("-")
+
+        quick_frame = ttk.Frame(form, style="Panel.TFrame")
+        quick_frame.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(8, 0))
+        ttk.Label(quick_frame, text="Fracciones rápidas", style="Muted.TLabel").pack(anchor="w")
+        quick_values = ["1/2", "1", "3/2", "2", "3", "7/2", "3 1/2"]
+        quick_bar = ttk.Frame(quick_frame, style="Panel.TFrame")
+        quick_bar.pack(fill="x", pady=(6, 0))
+        for value in quick_values:
+            ttk.Button(quick_bar, text=value, command=lambda v=value: self._apply_duration_quick(v)).pack(side="left", padx=(0, 6), pady=2)
+
+        ttk.Label(form, text="Soporta 1/2, 3/2, 3 1/2 y decimales.", style="Muted.TLabel").grid(row=5, column=0, columnspan=2, sticky="w", pady=(8, 0))
+
         buttons = ttk.Frame(form, style="Panel.TFrame")
-        buttons.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(10, 0))
+        buttons.grid(row=6, column=0, columnspan=2, sticky="ew", pady=(10, 0))
         ttk.Button(buttons, text="+ Agregar", style="Accent.TButton", command=self._add_activity).pack(side="left")
         ttk.Button(buttons, text="Actualizar", command=self._update_activity).pack(side="left", padx=7)
         ttk.Button(buttons, text="Limpiar", command=self._clear_form).pack(side="left")
@@ -190,37 +220,30 @@ class CPMApp(tk.Tk):
 
     def _load_example(self):
         self.activities = [
-            {"id": "A", "nombre": "Limpiar el terreno", "duracion": 1, "predecesoras": []},
-            {"id": "B", "nombre": "Llevar servicios al terreno", "duracion": 2, "predecesoras": []},
-            {"id": "C", "nombre": "Excavar", "duracion": 1, "predecesoras": ["A"]},
-            {"id": "D", "nombre": "Colar los cimientos", "duracion": 2, "predecesoras": ["C"]},
-            {"id": "E", "nombre": "Plomería externa", "duracion": 6, "predecesoras": ["B", "C"]},
-            {"id": "F", "nombre": "Armar estructura de la casa", "duracion": 10, "predecesoras": ["D"]},
-            {"id": "G", "nombre": "Instalar cableado eléctrico", "duracion": 3, "predecesoras": ["F"]},
-            {"id": "H", "nombre": "Colocar el piso", "duracion": 1, "predecesoras": ["G"]},
-            {"id": "I", "nombre": "Colocar el techo", "duracion": 1, "predecesoras": ["F"]},
-            {"id": "J", "nombre": "Plomería interior", "duracion": 5, "predecesoras": ["E", "H"]},
-            {"id": "K", "nombre": "Colocar tejas", "duracion": 2, "predecesoras": ["I"]},
-            {"id": "L", "nombre": "Recubrimiento aislante exterior", "duracion": 1, "predecesoras": ["F", "J"]},
-            {"id": "M", "nombre": "Instalar ventanas y puertas ext.", "duracion": 2, "predecesoras": ["F"]},
-            {"id": "N", "nombre": "Enladrillar", "duracion": 4, "predecesoras": ["L", "M"]},
-            {"id": "O", "nombre": "Aislar muros y cielo raso", "duracion": 2, "predecesoras": ["G", "J"]},
-            {"id": "P", "nombre": "Cubrir muros y cielo raso", "duracion": 2, "predecesoras": ["O"]},
-            {"id": "Q", "nombre": "Aislar techo", "duracion": 1, "predecesoras": ["I", "P"]},
-            {"id": "R", "nombre": "Terminar interiores", "duracion": 7, "predecesoras": ["P"]},
-            {"id": "S", "nombre": "Terminar exteriores", "duracion": 7, "predecesoras": ["I", "N"]},
-            {"id": "T", "nombre": "Jardinería", "duracion": 3, "predecesoras": ["S"]},
+            {"id": "A", "nombre": "Revisión del trabajo", "duracion": "1", "predecesoras": []},
+            {"id": "B", "nombre": "Avisar a los clientes del corte temporal de corriente", "duracion": "1/2", "predecesoras": ["A"]},
+            {"id": "C", "nombre": "Tiendas de requisición", "duracion": "1", "predecesoras": ["A"]},
+            {"id": "D", "nombre": "Explorar el trabajo", "duracion": "1/2", "predecesoras": ["A"]},
+            {"id": "E", "nombre": "Asegurar los postes y materiales", "duracion": "3", "predecesoras": ["C", "D"]},
+            {"id": "F", "nombre": "Distribuir los postes", "duracion": "3 1/2", "predecesoras": ["E"]},
+            {"id": "G", "nombre": "Coordinar la ubicación de postes", "duracion": "1/2", "predecesoras": ["D"]},
+            {"id": "H", "nombre": "Clavar estacas", "duracion": "1/2", "predecesoras": ["G"]},
+            {"id": "I", "nombre": "Cavar agujeros", "duracion": "3", "predecesoras": ["H"]},
         ]
         self._refresh_activity_tree()
         self._clear_form()
         self._calculate()
+
+    def _apply_duration_quick(self, value):
+        self.duration_var.set(value)
+        self.status_var.set(f"Duración rápida seleccionada: {value}")
 
     def _refresh_activity_tree(self):
         for item in self.activity_tree.get_children():
             self.activity_tree.delete(item)
         for item in self.activities:
             pred = ", ".join(item["predecesoras"]) or "Inicio"
-            self.activity_tree.insert("", "end", iid=item["id"], values=(item["id"], item["nombre"], item["duracion"], pred))
+            self.activity_tree.insert("", "end", iid=item["id"], values=(item["id"], item["nombre"], format_duration(item["duracion"]), pred))
 
     def _clear_form(self):
         self.id_var.set("")
@@ -236,9 +259,9 @@ class CPMApp(tk.Tk):
         if not activity_id or not name:
             raise ValueError("El ID y el nombre de la actividad son obligatorios.")
         try:
-            duration = float(self.duration_var.get())
-        except ValueError:
-            raise ValueError("La duración debe ser un número positivo.")
+            duration = parse_duration(self.duration_var.get())
+        except (TypeError, ValueError):
+            raise ValueError("La duración debe ser un número positivo, por ejemplo 3, 2.5 o 1/2.")
         if duration <= 0:
             raise ValueError("La duración debe ser mayor que cero.")
         pred_text = self.predecessors_var.get().replace("-", "").strip()
@@ -300,7 +323,7 @@ class CPMApp(tk.Tk):
         if item:
             self.id_var.set(item["id"])
             self.name_var.set(item["nombre"])
-            self.duration_var.set(str(item["duracion"]))
+            self.duration_var.set(format_duration(item["duracion"]))
             self.predecessors_var.set(", ".join(item["predecesoras"]) or "-")
 
     def _calculate(self):
@@ -308,7 +331,10 @@ class CPMApp(tk.Tk):
             messagebox.showwarning("Proyecto vacío", "Agrega al menos una actividad.")
             return
         try:
-            parsed = {item["id"]: Activity(item["id"], item["nombre"], item["duracion"], item["predecesoras"]) for item in self.activities}
+            parsed = {
+                item["id"]: Activity(item["id"], item["nombre"], parse_duration(item["duracion"]), item["predecesoras"])
+                for item in self.activities
+            }
             self.network = CPMNetwork(parsed).calcular()
             self._update_results()
             self._draw_charts()
@@ -328,11 +354,11 @@ class CPMApp(tk.Tk):
         alert = (not activity.is_critical and activity.ff < activity.tf - 1e-9)
         self.detail_var.set(
             f"{activity.id} · {activity.name}\n"
-            f"Duración: {activity.duration:g}    |    Predecesoras: {', '.join(activity.predecessors) or 'Inicio'}    |    "
+            f"Duración: {format_duration(activity.duration)}    |    Predecesoras: {', '.join(activity.predecessors) or 'Inicio'}    |    "
             f"Sucesoras: {', '.join(successors) or 'Fin'}\n"
-            f"Inicio temprano (ES): {activity.es:g}    |    Fin temprano (EF): {activity.ef:g}    |    "
-            f"Inicio tardío (LS): {activity.ls:g}    |    Fin tardío (LF): {activity.lf:g}\n"
-            f"Flotante total: {activity.tf:g}    |    Flotante libre: {activity.ff:g}    |    "
+            f"Inicio temprano (ES): {format_duration(activity.es)}    |    Fin temprano (EF): {format_duration(activity.ef)}    |    "
+            f"Inicio tardío (LS): {format_duration(activity.ls)}    |    Fin tardío (LF): {format_duration(activity.lf)}\n"
+            f"Flotante total: {format_duration(activity.tf)}    |    Flotante libre: {format_duration(activity.ff)}    |    "
             f"Estado: {'CRÍTICA' if activity.is_critical else 'Normal'}    |    Señal roja: {'Sí' if alert else 'No'}"
         )
         if self.activity_tree.exists(activity.id):
@@ -350,7 +376,7 @@ class CPMApp(tk.Tk):
         for item in self.results_tree.get_children():
             self.results_tree.delete(item)
         for activity in self.network.activities.values():
-            values = (activity.id, activity.name, f"{activity.duration:g}", f"{activity.es:g}", f"{activity.ef:g}", f"{activity.ls:g}", f"{activity.lf:g}", f"{activity.tf:g}", f"{activity.ff:g}", "CRÍTICA" if activity.is_critical else "Normal")
+            values = (activity.id, activity.name, format_duration(activity.duration), format_duration(activity.es), format_duration(activity.ef), format_duration(activity.ls), format_duration(activity.lf), format_duration(activity.tf), format_duration(activity.ff), "CRÍTICA" if activity.is_critical else "Normal")
             self.results_tree.insert("", "end", iid=activity.id, values=values, tags=("critical" if activity.is_critical else "normal",))
         if self.results_tree.get_children():
             self.results_tree.selection_set(self.results_tree.get_children()[0])
@@ -358,7 +384,7 @@ class CPMApp(tk.Tk):
             self._show_activity_detail()
         route = self.network._ordenar_ruta_critica()
         self.critical_var.set("  ›  ".join(route) if route else "No se encontró ruta crítica")
-        self.metric_vars["duration"].set(f"{self.network.duracion_proyecto:g}")
+        self.metric_vars["duration"].set(format_duration(self.network.duracion_proyecto))
         self.metric_vars["critical"].set(str(len(self.network.ruta_critica)))
         self.metric_vars["count"].set(str(len(self.network.activities)))
         alerts = sum(1 for a in self.network.activities.values() if not a.is_critical and a.ff < a.tf - 1e-9)
